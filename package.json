@@ -1,19 +1,19 @@
 {
-  "name": "n8n-nodes-<...>",
+  "name": "n8n-nodes-planning-center",
   "version": "0.1.0",
-  "description": "",
+  "description": "Community node package for n8n that integrates with Planning Center.",
   "keywords": [
     "n8n-community-node-package"
   ],
   "license": "MIT",
-  "homepage": "",
+  "homepage": "https://github.com/ZoneMix/n8n-nodes-planning-center.git",
   "author": {
-    "name": "",
-    "email": ""
+    "name": "Bailey Belisario",
+    "email": "zonemix@zonemix.tech"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/<...>/n8n-nodes-<...>.git"
+    "url": "https://github.com/ZoneMix/n8n-nodes-planning-center.git"
   },
   "engines": {
     "node": ">=20.15"
@@ -47,9 +47,15 @@
     "eslint-plugin-n8n-nodes-base": "^1.16.3",
     "gulp": "^5.0.0",
     "prettier": "^3.5.3",
-    "typescript": "^5.8.2"
+    "typescript": "^5.8.2",
+    "@planningcenter/icons": "^15.25.3"
   },
   "peerDependencies": {
     "n8n-workflow": "*"
+  },
+  "overrides": {
+    "n8n-workflow": {
+      "form-data": "4.0.4"
+    }
   }
 }

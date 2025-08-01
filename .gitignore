@@ -6,4 +6,4 @@ dist
 npm-debug.log*
 yarn.lock
 .vscode/launch.json
-.package-lock.json
+package-lock.json
