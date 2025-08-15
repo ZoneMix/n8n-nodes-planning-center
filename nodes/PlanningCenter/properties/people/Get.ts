@@ -44,4 +44,22 @@ export const peopleGet = [
 		default: 50,
 		description: 'Max number of results to return',
 	},
+	{
+		displayName: 'Field Definition Name or ID',
+		name: 'fieldDefinitionId',
+		type: 'options',
+		default: '',
+		required: true,
+		description:
+			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+		typeOptions: {
+			loadOptionsMethod: 'getFieldDefinitions',
+		},
+		displayOptions: {
+			show: {
+				resource: ['people'],
+				operation: ['getFieldDefinition'],
+			},
+		},
+	},
 ];

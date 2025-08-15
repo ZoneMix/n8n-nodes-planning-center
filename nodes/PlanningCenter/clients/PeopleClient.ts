@@ -23,11 +23,10 @@ export class PeopleClient extends BaseClient {
 	async createPerson(attributes: any): Promise<any> {
 		try {
 			const payload = { data: { attributes } };
-			console.log('Payload for createPerson:', payload);
+			//console.log('Payload for createPerson:', payload);
 			const response = await this.post('people', payload);
 			return response.data;
 		} catch (error) {
-			console.error('Error in createPerson:', error);
 			throw new Error(`Failed to create person: ${error.message}`);
 		}
 	}
@@ -143,19 +142,5 @@ export class PeopleClient extends BaseClient {
 	// Utility: Get field data by definition ID.
 	async getFieldDataByDefinition(fieldDefinitionId: string): Promise<any[]> {
 		return await this.getFieldData({ 'where[field_definition_id]': fieldDefinitionId });
-	}
-
-	// Utility: Search person by name, return email and phone.
-	async searchPersonByName(searchName: string): Promise<{ email: string; phone: string }> {
-		const people = await this.getPeople({ 'where[search_name]': searchName, per_page: 1 });
-		if (!people.length) {
-			return { email: '', phone: '' };
-		}
-		const personId = people[0].id;
-		const emails = await this.getEmailsForPerson(personId);
-		const email = emails.length ? emails[0].attributes.address : '';
-		const phones = await this.getPhoneNumbersForPerson(personId);
-		const phone = phones.length ? phones[0].attributes.number : '';
-		return { email, phone };
 	}
 }

@@ -26,6 +26,7 @@ export const publishingOperations = [
 				value: 'deleteEpisode',
 				action: 'Get many channels',
 			},
+			
 		],
 		default: 'createEpisode',
 	},

@@ -6,6 +6,8 @@ import {
 	INodeTypeDescription,
 	IHttpRequestMethods,
 	INodeProperties,
+	ILoadOptionsFunctions,
+	INodePropertyOptions,
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 import { PeopleClient } from './clients/PeopleClient';
@@ -47,6 +49,35 @@ export class PlanningCenter implements INodeType {
 			...(peopleProperties as INodeProperties[]),
 			...(publishingProperties as INodeProperties[]),
 		],
+	};
+
+	methods = {
+		loadOptions: {
+			async getFieldDefinitions(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				try {
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'planningCenterOAuth2Api',
+						{
+							method: 'GET',
+							url: 'https://api.planningcenteronline.com/people/v2/field_definitions',
+							qs: { per_page: 100 },
+							json: true,
+						},
+					);
+					const fieldDefinitions = response.data || [];
+					return fieldDefinitions.map((fd: any) => ({
+						name: fd.attributes.name,
+						value: fd.id,
+					}));
+				} catch (error) {
+					throw new NodeOperationError(
+						this.getNode(),
+						`Failed to load field definitions: ${error.message}`,
+					);
+				}
+			},
+		},
 	};
 
 	async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -95,7 +126,6 @@ export class PlanningCenter implements INodeType {
 		};
 
 		const peopleClient = new PeopleClient(request);
-		console.log('Items to process:', items);
 
 		for (let i = 0; i < items.length; i++) {
 			try {
@@ -193,6 +223,13 @@ export class PlanningCenter implements INodeType {
 					} else if (operation === 'deletePerson') {
 						const personId = this.getNodeParameter('personId', i) as string;
 						result = await peopleClient.deletePerson(personId);
+					} else if (operation === 'getFieldDefinition') {
+						const fieldDefinitionId = this.getNodeParameter('fieldDefinitionId', i, '') as string;
+						if (fieldDefinitionId) {
+							result = await peopleClient.getFieldDefinition(fieldDefinitionId, qs);
+						} else {
+							result = await peopleClient.getFieldDefinitions(qs);
+						}
 					}
 				}
 
