@@ -1,4 +1,4 @@
-// src/PlanningCenter.node.ts
+// nodes/PlanningCenter/PlanningCenter.node.ts
 import {
 	IExecuteFunctions,
 	INodeExecutionData,
@@ -9,10 +9,8 @@ import {
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 import { PeopleClient } from './clients/PeopleClient';
-import { peopleFilterOptions } from './properties/people/PeopleFilterOptions';
-import { peopleCreateUpdateProperties } from './properties/people/PeopleCreateUpdateProperties';
-import { PeopleOperations } from './properties/people/PeopleOperations';
-import { PublishingOperations } from './properties/publishing/PublishingOperations';
+import { peopleProperties } from './properties/people/Properties';
+import { publishingProperties } from './properties/publishing/Properties';
 
 export class PlanningCenter implements INodeType {
 	description: INodeTypeDescription = {
@@ -46,138 +44,8 @@ export class PlanningCenter implements INodeType {
 				],
 				default: 'people',
 			},
-			...(PeopleOperations as INodeProperties[]),
-			...(PublishingOperations as INodeProperties[]),
-			{
-				displayName: 'Person ID',
-				name: 'personId',
-				type: 'string',
-				required: true,
-				displayOptions: {
-					show: {
-						resource: ['people'],
-						operation: ['getPerson', 'deletePerson', 'updatePerson'],
-					},
-				},
-				default: '',
-				description: 'ID of the person',
-			},
-			{
-				displayName: 'Return All',
-				name: 'returnAll',
-				type: 'boolean',
-				displayOptions: {
-					show: {
-						resource: ['people'],
-						operation: ['getManyPeople'],
-					},
-				},
-				default: false,
-				description: 'Whether to return all results or only up to a given limit',
-			},
-			{
-				displayName: 'Limit',
-				name: 'limit',
-				type: 'number',
-				displayOptions: {
-					show: {
-						resource: ['people'],
-						operation: ['getManyPeople'],
-						returnAll: [false],
-					},
-				},
-				typeOptions: {
-					minValue: 1,
-				},
-				default: 50,
-				description: 'Max number of results to return',
-			},
-			{
-				displayName: 'Filters',
-				name: 'peopleFilters',
-				type: 'fixedCollection',
-				typeOptions: {
-					multipleValues: true,
-				},
-				displayOptions: {
-					show: {
-						resource: ['people'],
-						operation: ['getManyPeople'],
-					},
-				},
-				placeholder: 'Add Filter',
-				default: {},
-				options: [
-					{
-						name: 'whereFilters',
-						displayName: 'Where Filter',
-						values: [
-							{
-								displayName: 'Field',
-								name: 'field',
-								type: 'options',
-								options: peopleFilterOptions,
-								default: 'accounting_administrator',
-								description: 'The field to filter on',
-							},
-							{
-								displayName: 'Value',
-								name: 'stringValue',
-								type: 'string',
-								default: '',
-								displayOptions: {
-									hide: {
-										field: [
-											'accounting_administrator',
-											'child',
-											'site_administrator',
-											'passed_background_check',
-										],
-									},
-								},
-								description: 'The value to filter by',
-							},
-							{
-								displayName: 'Value',
-								name: 'booleanValue',
-								type: 'options',
-								options: [
-									{ name: 'True', value: 'true' },
-									{ name: 'False', value: 'false' },
-								],
-								default: 'true',
-								displayOptions: {
-									show: {
-										field: [
-											'accounting_administrator',
-											'child',
-											'site_administrator',
-											'passed_background_check',
-										],
-									},
-								},
-								description: 'The value to filter by',
-							},
-						],
-					},
-				],
-			},
-			{
-				displayName: 'Additional Query Parameters',
-				name: 'additionalFilters',
-				type: 'string',
-				displayOptions: {
-					show: {
-						resource: ['people'],
-						operation: ['getPerson', 'getManyPeople'],
-					},
-				},
-				default: '',
-				description:
-					'Other query parameters like order=last_name,include=emails (comma-separated, no leading ?)',
-				placeholder: 'order=last_name,include=emails',
-			},
-			...(peopleCreateUpdateProperties as INodeProperties[]),
+			...(peopleProperties as INodeProperties[]),
+			...(publishingProperties as INodeProperties[]),
 		],
 	};
 
@@ -189,7 +57,7 @@ export class PlanningCenter implements INodeType {
 
 		const request = async (method: string, url: string, body?: any, qs?: any) => {
 			try {
-				return await this.helpers.httpRequestWithAuthentication.call(
+				const response = await this.helpers.httpRequestWithAuthentication.call(
 					this,
 					'planningCenterOAuth2Api',
 					{
@@ -200,8 +68,17 @@ export class PlanningCenter implements INodeType {
 						json: true,
 					},
 				);
+				//console.log(`API request to ${url}:`, JSON.stringify(response, null, 2));
+				return response;
 			} catch (error) {
-				throw error;
+				console.error(
+					`API error for ${url}:`,
+					JSON.stringify(error.response?.data || error.message, null, 2),
+				);
+				const message = error.response?.data?.errors?.[0]?.detail || error.message;
+				throw new NodeOperationError(this.getNode(), `API error: ${message}`, {
+					description: `Full error response: ${JSON.stringify(error.response?.data || error.message)}`,
+				});
 			}
 		};
 
@@ -209,14 +86,16 @@ export class PlanningCenter implements INodeType {
 			const params: any = {};
 			if (filters) {
 				filters.split(',').forEach((param) => {
-					const [key, value] = param.split('=');
-					params[key.trim()] = value?.trim();
+					const [key, ...valueParts] = param.split('=');
+					const value = valueParts.join('=').trim();
+					if (key && value) params[key.trim()] = value;
 				});
 			}
 			return params;
 		};
 
 		const peopleClient = new PeopleClient(request);
+		console.log('Items to process:', items);
 
 		for (let i = 0; i < items.length; i++) {
 			try {
@@ -234,12 +113,7 @@ export class PlanningCenter implements INodeType {
 					}>;
 					whereFilters.forEach((filter) => {
 						let value;
-						const booleanFields = [
-							'accounting_administrator',
-							'child',
-							'site_administrator',
-							'passed_background_check',
-						];
+						const booleanFields = ['accounting_administrator', 'child', 'site_administrator'];
 						if (booleanFields.includes(filter.field)) {
 							value = filter.booleanValue;
 						} else {
@@ -262,35 +136,54 @@ export class PlanningCenter implements INodeType {
 						result = await peopleClient.getPeople(qs);
 					} else if (operation === 'createPerson' || operation === 'updatePerson') {
 						const attributes: any = {};
-						attributes.first_name = this.getNodeParameter('firstName', i, '');
-						attributes.last_name = this.getNodeParameter('lastName', i, '');
-						attributes.middle_name = this.getNodeParameter('middleName', i, '');
-						attributes.nickname = this.getNodeParameter('nickname', i, '');
-						const birthdate = this.getNodeParameter('birthdate', i, '') as string;
-						attributes.birthdate = birthdate ? birthdate.split('T')[0] : undefined;
-						const anniversary = this.getNodeParameter('anniversary', i, '') as string;
-						attributes.anniversary = anniversary ? anniversary.split('T')[0] : undefined;
-						const gender = this.getNodeParameter('gender', i, '') as string;
-						attributes.gender = gender ? gender.toUpperCase() : undefined;
-						attributes.grade = this.getNodeParameter('grade', i, undefined);
-						attributes.child = this.getNodeParameter('child', i, false);
-						attributes.graduation_year = this.getNodeParameter('graduationYear', i, undefined);
-						attributes.medical_notes = this.getNodeParameter('medicalNotes', i, '');
-						attributes.membership = this.getNodeParameter('membership', i, '');
-						attributes.status = this.getNodeParameter('status', i, '');
-						attributes.school_type = this.getNodeParameter('schoolType', i, '');
-						attributes.passed_background_check = this.getNodeParameter(
-							'passedBackgroundCheck',
-							i,
-							false,
-						);
-						if (!attributes.first_name && !attributes.last_name && operation === 'createPerson') {
-							throw new NodeOperationError(
-								this.getNode(),
-								'At least one of first name or last name is required',
-								{ itemIndex: i },
-							);
-						}
+						const fields = [
+							'accountingAdministrator',
+							'anniversary',
+							'birthdate',
+							'child',
+							'givenName',
+							'grade',
+							'graduationYear',
+							'middleName',
+							'nickname',
+							'peoplePermissions',
+							'siteAdministrator',
+							'gender',
+							'inactivatedAt',
+							'medicalNotes',
+							'membership',
+							'stripeCustomerIdentifier',
+							'avatar',
+							'firstName',
+							'lastName',
+							'genderId',
+							'primaryCampusId',
+							'remoteId',
+							'status',
+						];
+						const keyMap: { [key: string]: string } = {
+							accountingAdministrator: 'accounting_administrator',
+							givenName: 'given_name',
+							graduationYear: 'graduation_year',
+							middleName: 'middle_name',
+							peoplePermissions: 'people_permissions',
+							siteAdministrator: 'site_administrator',
+							inactivatedAt: 'inactivated_at',
+							medicalNotes: 'medical_notes',
+							stripeCustomerIdentifier: 'stripe_customer_identifier',
+							firstName: 'first_name',
+							lastName: 'last_name',
+							genderId: 'gender_id',
+							primaryCampusId: 'primary_campus_id',
+							remoteId: 'remote_id',
+						};
+						fields.forEach((field) => {
+							const value = this.getNodeParameter(field, i, undefined);
+							if (value !== undefined && value !== null && value !== '') {
+								const key = keyMap[field] || field;
+								attributes[key] = value;
+							}
+						});
 						if (operation === 'createPerson') {
 							result = await peopleClient.createPerson(attributes);
 						} else {
@@ -309,8 +202,10 @@ export class PlanningCenter implements INodeType {
 				}
 				returnData.push(...output.map((item: any) => ({ json: item || {} })));
 			} catch (error) {
+				console.error(`Node error for item ${i}:`, JSON.stringify(error, null, 2));
 				throw new NodeOperationError(this.getNode(), `Planning Center error: ${error.message}`, {
 					itemIndex: i,
+					description: `Full error: ${JSON.stringify(error.cause?.response?.data || error.message)}`,
 				});
 			}
 		}

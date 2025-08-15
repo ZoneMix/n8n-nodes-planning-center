@@ -1,4 +1,5 @@
-export const PeopleOperations = [
+// nodes/PlanningCenter/properties/people/Operations.ts
+export const peopleOperations = [
 	{
 		displayName: 'Operation',
 		name: 'operation',

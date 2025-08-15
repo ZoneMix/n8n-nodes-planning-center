@@ -1,4 +1,4 @@
-// src/properties/PeopleFilterOptions.ts
+// node/properties/people/PeopleFilterOptions.ts
 export const peopleFilterOptions = [
     { name: 'Accounting Administrator', value: 'accounting_administrator' },
     { name: 'Anniversary', value: 'anniversary' },

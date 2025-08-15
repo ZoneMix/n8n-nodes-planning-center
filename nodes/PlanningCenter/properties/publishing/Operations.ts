@@ -1,4 +1,5 @@
-export const PublishingOperations = [
+// nodes/PlanningCenter/properties/publishing/Operations.ts
+export const publishingOperations = [
 	{
 		displayName: 'Operation',
 		name: 'operation',
