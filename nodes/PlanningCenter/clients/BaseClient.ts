@@ -29,7 +29,7 @@ export class BaseClient {
 	// POST request. Sends JSON body.
 	// Returns the JSON response.
 	async post(url: string, data: any): Promise<any> {
-		console.log('POST request to:', this.fullUrl(url), 'with data:', data);
+		//console.log('POST request to:', this.fullUrl(url), 'with data:', data);
 		return await this.request('POST', this.fullUrl(url), data);
 	}
 

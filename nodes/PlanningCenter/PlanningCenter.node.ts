@@ -1,16 +1,17 @@
 // nodes/PlanningCenter/PlanningCenter.node.ts
 import {
 	IExecuteFunctions,
+	ILoadOptionsFunctions,
 	INodeExecutionData,
+	INodePropertyOptions,
 	INodeType,
 	INodeTypeDescription,
 	IHttpRequestMethods,
 	INodeProperties,
-	ILoadOptionsFunctions,
-	INodePropertyOptions,
 } from 'n8n-workflow';
 import { NodeConnectionType, NodeOperationError } from 'n8n-workflow';
 import { PeopleClient } from './clients/PeopleClient';
+import { PublishingClient } from './clients/PublishingClient';
 import { peopleProperties } from './properties/people/Properties';
 import { publishingProperties } from './properties/publishing/Properties';
 
@@ -77,6 +78,72 @@ export class PlanningCenter implements INodeType {
 					);
 				}
 			},
+			async getChannels(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				try {
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'planningCenterOAuth2Api',
+						{
+							method: 'GET',
+							url: 'https://api.planningcenteronline.com/publishing/v2/channels',
+							qs: { per_page: 100 },
+							json: true,
+						},
+					);
+					const channels = response.data || [];
+					return channels.map((c: any) => ({
+						name: c.attributes.name,
+						value: c.id,
+					}));
+				} catch (error) {
+					throw new NodeOperationError(this.getNode(), `Failed to load channels: ${error.message}`);
+				}
+			},
+			async getSeries(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				try {
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'planningCenterOAuth2Api',
+						{
+							method: 'GET',
+							url: 'https://api.planningcenteronline.com/publishing/v2/series',
+							qs: { per_page: 100 },
+							json: true,
+						},
+					);
+					const series = response.data || [];
+					return [
+						{ name: 'Series', value: '' },
+						...series.map((s: any) => ({
+							name: s.attributes.title,
+							value: s.id,
+						})),
+					];
+				} catch (error) {
+					throw new NodeOperationError(this.getNode(), `Failed to load series: ${error.message}`);
+				}
+			},
+			async getSpeakers(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+				try {
+					const response = await this.helpers.httpRequestWithAuthentication.call(
+						this,
+						'planningCenterOAuth2Api',
+						{
+							method: 'GET',
+							url: 'https://api.planningcenteronline.com/publishing/v2/speakers',
+							qs: { per_page: 100 },
+							json: true,
+						},
+					);
+					const speakers = response.data || [];
+					return speakers.map((s: any) => ({
+						name: s.attributes.formatted_name,
+						value: s.id,
+					}));
+				} catch (error) {
+					throw new NodeOperationError(this.getNode(), `Failed to load speakers: ${error.message}`);
+				}
+			},
 		},
 	};
 
@@ -99,7 +166,7 @@ export class PlanningCenter implements INodeType {
 						json: true,
 					},
 				);
-				//console.log(`API request to ${url}:`, JSON.stringify(response, null, 2));
+				// console.log(`API request to ${url}:`, JSON.stringify(response, null, 2));
 				return response;
 			} catch (error) {
 				console.error(
@@ -126,6 +193,7 @@ export class PlanningCenter implements INodeType {
 		};
 
 		const peopleClient = new PeopleClient(request);
+		const publishingClient = new PublishingClient(request);
 
 		for (let i = 0; i < items.length; i++) {
 			try {
@@ -223,7 +291,7 @@ export class PlanningCenter implements INodeType {
 					} else if (operation === 'deletePerson') {
 						const personId = this.getNodeParameter('personId', i) as string;
 						result = await peopleClient.deletePerson(personId);
-					} else if (operation === 'getFieldDefinition') {
+					} else if (operation === 'listFieldDefinitions') {
 						const fieldDefinitionId = this.getNodeParameter('fieldDefinitionId', i, '') as string;
 						if (fieldDefinitionId) {
 							result = await peopleClient.getFieldDefinition(fieldDefinitionId, qs);
@@ -231,10 +299,91 @@ export class PlanningCenter implements INodeType {
 							result = await peopleClient.getFieldDefinitions(qs);
 						}
 					}
+				} else if (resource === 'publishing') {
+					if (operation === 'getChannel') {
+						const channelId = this.getNodeParameter('channelId', i) as string;
+						result = await publishingClient.getChannel(channelId, qs);
+					} else if (operation === 'getManyChannels') {
+						const search = this.getNodeParameter('search', i, '') as string;
+						if (search) qs['where[search]'] = search;
+						result = await publishingClient.getChannels(qs);
+					} else if (operation === 'getSeries') {
+						const seriesId = this.getNodeParameter('seriesId', i) as string;
+						result = await publishingClient.getSeriesById(seriesId, qs);
+					} else if (operation === 'getManySeries') {
+						const search = this.getNodeParameter('search', i, '') as string;
+						if (search) qs['where[search]'] = search;
+						result = await publishingClient.getSeries(qs);
+					} else if (operation === 'getSpeaker') {
+						const speakerId = this.getNodeParameter('speakerId', i) as string;
+						result = await publishingClient.getSpeaker(speakerId, qs);
+					} else if (operation === 'getManySpeakers') {
+						result = await publishingClient.getSpeakers(qs);
+					} else if (operation === 'getEpisode') {
+						const episodeId = this.getNodeParameter('episodeId', i) as string;
+						result = await publishingClient.getEpisode(episodeId, qs);
+					} else if (operation === 'getManyEpisodes') {
+						const search = this.getNodeParameter('search', i, '') as string;
+						const seriesId = this.getNodeParameter('seriesId', i, '') as string;
+						const servicesPlanRemoteIdentifier = this.getNodeParameter(
+							'servicesPlanRemoteIdentifier',
+							i,
+							'',
+						) as string;
+						const servicesServiceTypeRemoteIdentifier = this.getNodeParameter(
+							'servicesServiceTypeRemoteIdentifier',
+							i,
+							'',
+						) as string;
+						if (search) qs['where[search]'] = search;
+						if (seriesId) qs['where[series_id]'] = seriesId;
+						if (servicesPlanRemoteIdentifier)
+							qs['where[services_plan_remote_identifier]'] = servicesPlanRemoteIdentifier;
+						if (servicesServiceTypeRemoteIdentifier)
+							qs['where[services_service_type_remote_identifier]'] =
+								servicesServiceTypeRemoteIdentifier;
+						result = await publishingClient.getEpisodes(qs);
+					} else if (operation === 'createEpisode') {
+						const attributes: any = {};
+						const fields = [
+							'art',
+							'seriesId',
+							'title',
+							'description',
+							'sermonAudio',
+							'streamType',
+							'videoUrl',
+							'publishedToLibraryAt',
+							'libraryAudioUrl',
+							'libraryVideoUrl',
+							'channelId',
+						];
+						const keyMap: { [key: string]: string } = {
+							seriesId: 'series_id',
+							sermonAudio: 'sermon_audio',
+							streamType: 'stream_type',
+							videoUrl: 'video_url',
+							publishedToLibraryAt: 'published_to_library_at',
+							libraryAudioUrl: 'library_audio_url',
+							libraryVideoUrl: 'library_video_url',
+							channelId: 'channel_id',
+						};
+						fields.forEach((field) => {
+							const value = this.getNodeParameter(field, i, undefined);
+							if (value !== undefined && value !== null && value !== '') {
+								const key = keyMap[field] || field;
+								attributes[key] = value;
+							}
+						});
+						result = await publishingClient.createEpisode(attributes);
+					}
 				}
 
 				let output = Array.isArray(result) ? result : [result];
-				if (operation === 'getManyPeople' && !returnAll) {
+				if (
+					(operation.startsWith('getMany') || operation === 'listFieldDefinitions') &&
+					!returnAll
+				) {
 					output = output.slice(0, limit);
 				}
 				returnData.push(...output.map((item: any) => ({ json: item || {} })));
