@@ -29,7 +29,7 @@ export const peopleOperations = [
 			{
 				name: 'Get Field Definition',
 				value: 'getFieldDefinition',
-				action: 'Get field definitions',
+				action: 'Get field definition',
 			},
 			{
 				name: 'Get Many People',

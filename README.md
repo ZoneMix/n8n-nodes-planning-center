@@ -1,5 +1,3 @@
-# IN DEVELOPMENT
-
 # n8n-nodes-planning-center
 
 This is an n8n community node. It interacts with the Planning Center API to work with your n8n workflows.
@@ -36,12 +34,28 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 
 ### People
 
-* Get a Person (Returns Person Object)
-* Get Many People (Returns All People, can limit)
+* Create a person (Creates a Person)
+* Delete a person (Delete a person, requires Person ID)
+* Get a person (Return person object, requires Person ID)
+* Get field definition (Get a field definition, requires Field Definition Name or ID from dropdown)
+* Get many people (Return people objects based on given parameters)
+* Update a person (Updates given fields, requires ID)
+
+#TODO add planned operations
 
 ### Publishing
 
-#TODO
+* Create an episode (Creates episode, requires Channel Name or ID from dropdown)
+* Get a channel (Return channel object, requires Channel Name or ID from dropdown)
+* Get a series (Return series object, requires Series Name or ID from dropdown)
+* Get a speaker (Return speaker object, requires Speaker Name or ID from dropdown)
+* Get an episode (Return episode object, requires Episode ID)
+* Get many channels (Return channel objects based on given parameters)
+* Get many episodes (Return episode objects based on given parameters)
+* Get many series (Return series objects based on given parameters)
+* Get many speakers (Return speaker objects based on given parameters)
+
+#TODO add planned operations
 
 ### Registrations
 
