@@ -33,7 +33,7 @@
   "n8n": {
     "n8nNodesApiVersion": 1,
     "credentials": [
-      "dist/credentials/PlanningCenterApi.credentials.js"
+      "dist/credentials/PlanningCenterOAuth2Api.credentials.js"
     ],
     "nodes": [
       "dist/nodes/PlanningCenter/PlanningCenter.node.js"
